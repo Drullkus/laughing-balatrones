@@ -1,27 +1,19 @@
 package us.drullk
 
-val hands: Map<String, (List<PokerCard>) -> Boolean> = mapOf(
-    "High Card" to ::isHighCard,
-    "Pair" to ::isPair,
-    "Two Pair" to ::isTwoPair,
-    "Three of a Kind" to ::isThreeOfAKind,
-    "Straight" to ::isStraight,
-    "Flush" to ::isFlush,
-    "Full House" to ::isFullHouse,
-    "Four of a Kind" to ::isFourOfAKind,
-    "Straight Flush" to ::isStraightFlush,
-    "Royal Flush" to ::isRoyalFlush,
-    "Five of a Kind" to ::isFiveOfAKind,
-    "Flush House" to ::isFlushHouse,
-    "Flush Five" to ::isFlushFive
-)
+// Returns a list with counts of each distinct rank
+fun rankCounts(hand: List<PokerCard>): Collection<Int> =
+    hand.groupingBy { it.rank }.eachCount().values
 
-// Returns a map with counts of each rank.
-fun rankCounts(hand: List<PokerCard>): Map<Rank, Int> =
-    hand.groupingBy { it.rank }.eachCount()
-
-fun cardGenerator(): List<PokerCard> =
-    Suit.entries.flatMap { suit -> Rank.entries.map { rank -> PokerCard(suit, rank) } }
+/**
+ * A generator function generating
+ */
+fun pokerDeckGenerator(): Sequence<PokerCard> = sequence {
+    for (suit in Suit.entries) {
+        for (rank in Rank.entries) {
+            yield(PokerCard(suit, rank))
+        }
+    }
+}
 
 /**
  * Generates all combinations of a list taken r at a time as a Sequence.
@@ -29,9 +21,9 @@ fun cardGenerator(): List<PokerCard> =
 fun <T> combinations(list: List<T>, r: Int): Sequence<List<T>> = sequence {
     val n = list.size
     if (r > n || r < 0) return@sequence
-    val indices = IntArray(r) { it }
+    val indices = IntArray(r)
     while (true) {
-        yield(indices.map { list[it] })
+        yield(indices.map(list::get))
         var i = r - 1
         while (i >= 0 && indices[i] == i + n - r) {
             i--
@@ -66,4 +58,44 @@ fun handPercentile(predicate: (List<PokerCard>) -> Boolean, deck: List<PokerCard
         if (predicate(hand)) validHands++
     }
     return (validHands.toDouble() / totalHands.toDouble()) * 100.0
+}
+
+fun longestConsecutiveSequence(nums: List<Int>, shortcut: Boolean = false): Int {
+    if (nums.isEmpty()) return 0
+
+    var longest = 1
+    var current = 1
+
+    for (i in 1 until nums.size) {
+        val diff = nums[i] - nums[i - 1]
+        if (!shortcut) {
+            if (diff == 1) {
+                current++
+            } else {
+                longest = maxOf(longest, current)
+                current = 1
+            }
+        } else {
+            // When allowing a gap, we treat a difference of 1 or 2 as consecutive.
+            if (diff in 1..2) {
+                current++
+            } else {
+                longest = maxOf(longest, current)
+                current = 1
+            }
+        }
+    }
+    return maxOf(longest, current)
+}
+
+/**
+ * Doesn't actually create what's structurally a vector, but it is still a vector in consideration of each value-component being assigned
+ */
+fun vectorizeDeckChances(deck: List<PokerCard>): Map<PokerHand, Double> {
+    val results = HashMap<PokerHand, Double>()
+
+    for (hand in PokerHand.entries)
+        results[hand] = handPercentile(hand.predicate, deck)
+
+    return results
 }
